@@ -82,8 +82,8 @@
           </template>
 
           <div v-if="tabIndex==='result'">
-            <b-progress v-if="currentIteration" show-value animated>
-              <b-progress-bar :max="iterations" :value="currentIteration"></b-progress-bar>
+            <b-progress v-if="currentIteration">
+              <b-progress-bar :max="iterations" :value="currentIteration" show-value animated></b-progress-bar>
             </b-progress>
             <template v-if="logText">
               <div class="row">
