@@ -1,24 +1,37 @@
 import Vue from 'vue/dist/vue.esm'
 import { BootstrapVue, IconsPlugin } from 'bootstrap-vue'
+import VueWordCloud from 'vuewordcloud'
 
 // Import Bootstrap an BootstrapVue CSS files (order is important)
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
 import LDA from './lda'
+import color256 from './rand256-color'
 
 // Make BootstrapVue available throughout your project
 Vue.use(BootstrapVue)
 // Optionally install the BootstrapVue icon components plugin
 Vue.use(IconsPlugin)
+Vue.component(VueWordCloud.name, VueWordCloud)
 
-const vm = new Vue({
+const app = {
   components: {
   },
   data () {
     return {
+      tabIndex: 'input',
+      color256: color256,
       random: 'seed',
       topk: 4,
       terms: 20,
+      iterations: 10000,
+      burnIn: 2000,
+      thinInterval: 100,
+      sampleLag: 10,
+      alpha: 0.1, // per-document distributions over topics
+      beta: 0.01, // per-topic distributions over words
+      stopwords: '',
+      topicThreshold: 0.0001,
       text: `要 談到 苗族 的 一切 應 先 要 說 些 該 地 的 情形 風俗 習慣 廣西 的 苗族 是 產 在 恩隆縣 的 西北隅 離 恩隆 約 六十 里 苗族 的 住處 橫直 約 百餘里 一 片 荒山 大嶺 樹木 非常 繁盛 路 又 很 崎嶇 的 果若 我們 進 裏面 去 沒有 人 指導 不但 不會 走路 望見 那 叢森森 的 林木 都 會 發生 恐懼心 了 所以 外人 也 不 敢 去 侵犯 他 只要 他 有 兩 個 人 守 路口 任 你 如何 都 進 不 去 或是 他 一 羣 人 在 山 上 擲下 石子 來 那 不 知 要 死 多少 人 在 他 手 裏 啦 他們 在 明朝 還 上 地方官 恩隆 的 粮稅 到 了 淸朝 他們 便 不 上粮 了 反抗 滿 淸 是 很 激烈 這 不 知 他們 是 什麽 用意 他們 的 住處 很 不一定 在 一 個 大嶺 底下 有 得 十幾 家 零零星星 的 住起來 房屋 很 矮 多 是 棕葉 和 樹皮 造成 的 
       他們 是 沒有 什麽 宗教 的 只 是 每 個 人 隨便 到 山 上 敬 個 石頭 或是 大樹 來 祈求 自己 的 安全 隨便 各人 去 敬 什麽 很 自由 的 這 並 不 是 他們 的 教 比 喩 他們 敬 一 個 大 石 就 是 認 這 個 大 石 做 契父 一樣 這 是 廣西 各 處 都 差不多 有的 湖南 福建 也 有 不過 沒有 他們 苗族 這 麽興 行罷 
       他們 苗人 雖說 是 野蠻 風俗 非常 醇厚 人 也 忠實 和樂 同 類 不 相 殘害 ； 假使 外人 不 侵犯 他 他 也 非常 和靄謙讓 ； 對於 他們 的 土王 更 絕對 的 服從 土王 是 他們 族 中 最 有 勢力 的 人 都 是 公推出 的 ； 如 有 三 代 土王 辦事 不 好 就 實行 推倒 另 舉 土王 了 土王 就 是 這樣 產生 的 土王 有 王田 輪流 每 年 數 家 來 種 王田 這 是 土王 的 國錄 差不多 像 我們 古代 的 井田制 一樣 
@@ -34,7 +47,10 @@ const vm = new Vue({
       以上 苗族 的 兩 種 婚娶法 巳經 說完 究竟 苗族 有 不 有 離婚 呢 這 是 沒有 的 比方 一 個 女子 嫁 後 如果 同 她 的 丈夫 有 感情 就 親密 點 就 常時 和 丈夫 同居 有時 與 別的 男子 發生 外遇 也 可 丈夫 還 以為 榮 如果 同 丈夫 感情 不 好 只 是 全 年 在 外面 居住 或 自己 起造 一 所 住屋 自有 別的 男子 來 愛 她 的 但是 無論如何 這 女子 所 生育 的 兒女 都 是 屬於 丈夫 的 只 有 這 點 關係 所以 她 雖 不 離婚 而 對於 住 的 生活 性 的 生活 是 非常 自由 啊 同時 女子 還 有 丈夫 存在 的 別的 男子 只 愛 她 而 沒有 誰人 敢 娶為 名義 上 的 夫婦 啊 至少 要 丈夫 或 妻子 死 了 方 可 因此 他們 也 沒有 一夫多妻制 土王 自是 例外  也 沒有 離婚 
       最後 要 說明 我 這 篇 文字 的 動機 因為 看見 本 誌 十三 卷 五 期 有 陳雅弦 女士 緬俗紀異 的 一 篇 大作 感觸 起來 的 這樣 的 風俗 叫做 紀異  也 無 不 可 吧 
       述 於 柳州 香竿街`,
-      logText: ''
+      logText: '',
+      theta: [],
+      sentences: [],
+      topics: []
     }
   },
   mounted () {
@@ -51,7 +67,7 @@ const vm = new Vue({
         const lda = new LDA({
           random: self.random
         })
-        self.shawdow = self.text
+        const stopwords = self.stopwords.split(/\s+/)
         const sentences = self.text.split('\n')
         const documents = []
         const f = {}
@@ -68,8 +84,12 @@ const vm = new Vue({
           const wordIndices = []
           for (let wc = 0; wc < words.length; wc++) {
             const w = words[wc]
-            // .toLowerCase().replace(/[^a-z\'A-Z0-9 ]+/g, '')
-            if (w === '' || w.length === 1 || w.indexOf('http') === 0) {
+            if (
+              w === '' ||
+              w.length === 1 ||
+              w.indexOf('http') === 0 ||
+              stopwords.indexOf(w) >= 0
+            ) {
               continue
             }
             if (f[w]) {
@@ -85,19 +105,14 @@ const vm = new Vue({
           }
         }
 
-        const V = vocab.length
-        const alpha = 0.1 // per-document distributions over topics
-        const beta = 0.01 // per-topic distributions over words
-        const K = self.topk
-        lda.configure(documents, V, 10000, 2000, 100, 10)
-        lda.gibbs(K, alpha, beta)
-        // const theta = lda.getTheta()
+        lda.configure(documents, vocab.length, self.iterations, self.burnIn, self.thinInterval, self.sampleLag)
+        lda.gibbs(self.topk, self.alpha, self.beta)
+        const theta = lda.getTheta()
         const phi = lda.getPhi()
 
         let topTerms = self.terms
-        const topicText = []
+        const topics = []
         for (let k = 0; k < phi.length; k++) {
-          // text += '<canvas id="topic' + k + '" class="topicbox color' + k + '"><ul>'
           const tuples = []
           for (let w = 0; w < phi[k].length; w++) {
             tuples.push({
@@ -111,26 +126,29 @@ const vm = new Vue({
           if (topTerms > vocab.length) {
             topTerms = vocab.length
           }
-          topicText[k] = []
+          topics[k] = []
           for (let t = 0; t < topTerms; t++) {
             const topicTerm = tuples[t].word
             const prob = tuples[t].prob * 100
-            if (prob < 0.0001) {
+            if (prob < self.topicThreshold) {
               continue
             }
-            // text += ('<li><a href="javascript:void(0);" data-weight="' + (prob) + '" title="' + prob + '%">' + topicTerm + '</a></li>')
             self.log('topic ' + k + ': ' + topicTerm + ' = ' + prob + '%')
-            topicText[k].push(tuples[t])
+            topics[k].push(tuples[t])
           }
-          // text += '</ul></canvas>'
         }
-        // this.log(this.result)
+
+        self.$set(self, 'sentences', sentences)
+        self.$set(self, 'theta', theta)
+        self.$set(self, 'topics', topics)
+        self.$set(self, 'tabIndex', 'result')
       }, 0)
     },
     onChange () {
 
     }
   }
-})
+}
 
+const vm = new Vue(app)
 vm.$mount('#app')
