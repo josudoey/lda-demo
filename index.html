@@ -3,6 +3,7 @@
 <head>
   <title>LDA Demo</title>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
 </head>
 
 <body style="height: 100%">
@@ -43,8 +44,8 @@
           <template v-if="tabIndex==='config'">
             <div class="mt-2">
               <div class="row">
-                <b-input-group style="width:200px;" prepend="random">
-                  <b-form-input v-model="random"></b-form-input>
+                <b-input-group style="width:200px;" prepend="seed">
+                  <b-form-input v-model="seed"></b-form-input>
                 </b-input-group>
                 <b-input-group style="width:200px;" prepend="alpha">
                   <b-form-input type="number" v-model="alpha"></b-form-input>

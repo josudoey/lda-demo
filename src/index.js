@@ -21,15 +21,15 @@ const app = {
     return {
       tabIndex: 'input',
       color256: color256,
-      random: 'seed',
+      seed: 'random',
       topk: 4,
       terms: 20,
       iterations: 10000,
       burnIn: 2000,
       thinInterval: 100,
       sampleLag: 10,
-      alpha: 0.1, // per-document distributions over topics
-      beta: 0.01, // per-topic distributions over words
+      alpha: 2, // per-document distributions over topics
+      beta: 0.5, // per-topic distributions over words
       stopwords: '',
       topicThreshold: 0.0001,
       text: `要 談到 苗族 的 一切 應 先 要 說 些 該 地 的 情形 風俗 習慣 廣西 的 苗族 是 產 在 恩隆縣 的 西北隅 離 恩隆 約 六十 里 苗族 的 住處 橫直 約 百餘里 一 片 荒山 大嶺 樹木 非常 繁盛 路 又 很 崎嶇 的 果若 我們 進 裏面 去 沒有 人 指導 不但 不會 走路 望見 那 叢森森 的 林木 都 會 發生 恐懼心 了 所以 外人 也 不 敢 去 侵犯 他 只要 他 有 兩 個 人 守 路口 任 你 如何 都 進 不 去 或是 他 一 羣 人 在 山 上 擲下 石子 來 那 不 知 要 死 多少 人 在 他 手 裏 啦 他們 在 明朝 還 上 地方官 恩隆 的 粮稅 到 了 淸朝 他們 便 不 上粮 了 反抗 滿 淸 是 很 激烈 這 不 知 他們 是 什麽 用意 他們 的 住處 很 不一定 在 一 個 大嶺 底下 有 得 十幾 家 零零星星 的 住起來 房屋 很 矮 多 是 棕葉 和 樹皮 造成 的 
@@ -64,51 +64,57 @@ const app = {
       const self = this
       this.logText = ''
       setTimeout(function () {
-        const lda = new LDA({
-          random: self.random
-        })
         const stopwords = self.stopwords.split(/\s+/)
         const sentences = self.text.split('\n')
         const documents = []
-        const f = {}
-        const vocab = []
+        const freq = {}
+        const words = []
         let docCount = 0
         for (let i = 0; i < sentences.length; i++) {
           if (sentences[i] === '') {
             continue
           }
-          const words = sentences[i].split(/[\s,"]+/)
-          if (!words) {
+          const docWords = sentences[i].split(/[\s,"]+/)
+          if (!docWords.length) {
             continue
           }
           const wordIndices = []
-          for (let wc = 0; wc < words.length; wc++) {
-            const w = words[wc]
+          for (let index = 0; index < docWords.length; index++) {
+            const word = docWords[index]
             if (
-              w === '' ||
-              w.length === 1 ||
-              w.indexOf('http') === 0 ||
-              stopwords.indexOf(w) >= 0
+              word === '' ||
+              word.length === 1 ||
+              word.indexOf('http') === 0 ||
+              stopwords.indexOf(word) >= 0
             ) {
               continue
             }
-            if (f[w]) {
-              f[w] = f[w] + 1
-            } else if (w) {
-              f[w] = 1
-              vocab.push(w)
-            };
-            wordIndices.push(vocab.indexOf(w))
+
+            if (!freq[word]) {
+              freq[word] = 0
+              words.push(word)
+            }
+            freq[word] = freq[word] + 1
+            const wordIndex = words.indexOf(word)
+            wordIndices.push(wordIndex)
           }
-          if (wordIndices && wordIndices.length > 0) {
-            documents[docCount++] = wordIndices
+
+          if (!wordIndices.length) {
+            continue
           }
+
+          documents[docCount++] = wordIndices
         }
 
-        lda.configure(documents, vocab.length, self.iterations, self.burnIn, self.thinInterval, self.sampleLag)
-        lda.gibbs(self.topk, self.alpha, self.beta)
-        const theta = lda.getTheta()
-        const phi = lda.getPhi()
+        const { theta, phi } = LDA(parseInt(self.topk), documents, words, {
+          seed: self.seed,
+          iterations: Number(self.iterations),
+          burnIn: Number(self.burnIn),
+          thinInterval: Number(self.thinInterval),
+          sampleLag: Number(self.sampleLag),
+          alpha: Number(self.alpha),
+          beta: Number(self.beta)
+        })
 
         let topTerms = self.terms
         const topics = []
@@ -116,15 +122,15 @@ const app = {
           const tuples = []
           for (let w = 0; w < phi[k].length; w++) {
             tuples.push({
-              word: vocab[w],
+              word: words[w],
               prob: phi[k][w]
             })
           }
           tuples.sort(function (a, b) {
             return b.prob - a.prob
           })
-          if (topTerms > vocab.length) {
-            topTerms = vocab.length
+          if (topTerms > words.length) {
+            topTerms = words.length
           }
           topics[k] = []
           for (let t = 0; t < topTerms; t++) {
