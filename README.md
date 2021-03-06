@@ -4,7 +4,7 @@
 lda-demo是一個lda文字分析工具
 
 
-線上展示 [demo](https://rawcdn.githack.com/josudoey/lda-demo/3af8d11e5c13c4af6bfee5f14aa532bcbad6d8f5/dist/index.html)
+線上展示 [demo](https://rawcdn.githack.com/josudoey/lda-demo/a2c2375c1d03304a5155df3fb5e01a8c81d974f5/dist/index.html)
 
 ## 相關資訊
  - http://www.arbylon.net/projects/LdaGibbsSampler.java
