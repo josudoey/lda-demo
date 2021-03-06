@@ -12,12 +12,12 @@
       <b-navbar-brand>LDA</b-navbar-brand>
     </b-navbar>
     <div class="container-fluid">
-      <div class="d-flex mt-2">
+      <div class="d-flex flex-wrap mt-2">
         <b-btn variant="primary" @click="calc">計算</b-btn>
-        <b-input-group style="width:200px;" prepend="topK">
+        <b-input-group style="width:150px;" prepend="topK">
           <b-form-input type="number" v-model="topk" :min="1" :max="256"></b-form-input>
         </b-input-group>
-        <b-input-group style="width:200px;" prepend="terms">
+        <b-input-group style="width:150px;" prepend="terms">
           <b-form-input type="number" v-model="terms" :min="1"></b-form-input>
         </b-input-group>
       </div>
