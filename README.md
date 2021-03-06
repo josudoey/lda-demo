@@ -4,9 +4,11 @@
 lda-demo是一個lda文字分析工具,
 
 
-線上展示 [demo](https://rawcdn.githack.com/josudoey/lda-demo/7cd14a3e8d17e6e83314c67cf3da508eb4cd7e08/dist/index.html)
+線上展示 [demo](https://rawcdn.githack.com/josudoey/lda-demo/1a7c293241da9037fb26c13accbf4e9e778571ac/dist/index.html)
 
 ## 相關資訊
+ - http://www.arbylon.net/projects/LdaGibbsSampler.java
+ - http://jgibblda.sourceforge.net/#Heinrich
  - http://140.109.240.65:8080/LDA/
  - https://taweihuang.hpd.io/2019/01/10/topic-modeling-lda/
  - https://taweihuang.hpd.io/2017/03/01/tfidf/
