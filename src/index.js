@@ -1,3 +1,4 @@
+import 'core-js'
 import { pick } from 'lodash'
 import Vue from 'vue/dist/vue.esm'
 import { BootstrapVue, IconsPlugin } from 'bootstrap-vue'
@@ -26,6 +27,7 @@ const app = {
 
     }
     return Object.assign(this.default(), {
+      currentIteration: 0,
       tabIndex: 'input',
       color256: color256,
       logText: '',
@@ -70,110 +72,116 @@ const app = {
     log (msg) {
       this.logText += msg + '\n'
     },
-    calc () {
+    async calc () {
       const self = this
+      self.currentIteration = 1
+      self.$set(self, 'tabIndex', 'result')
       this.logText = ''
-      setTimeout(function () {
-        const stopwords = self.stopwords.split(/\s+/)
-        const sentences = self.text.split('\n')
-        const documents = []
-        const freq = {}
-        const words = []
-        let docCount = 0
-        for (let i = 0; i < sentences.length; i++) {
-          if (sentences[i] === '') {
-            continue
-          }
-          const docWords = sentences[i].split(/[\s,"]+/)
-          if (!docWords.length) {
-            continue
-          }
-          const wordIndices = []
-          for (let index = 0; index < docWords.length; index++) {
-            const word = docWords[index]
-            if (
-              word === '' ||
+      const stopwords = self.stopwords.split(/\s+/)
+      const sentences = self.text.split('\n')
+      const documents = []
+      const freq = {}
+      const words = []
+      let docCount = 0
+      for (let i = 0; i < sentences.length; i++) {
+        if (sentences[i] === '') {
+          continue
+        }
+        const docWords = sentences[i].split(/[\s,"]+/)
+        if (!docWords.length) {
+          continue
+        }
+        const wordIndices = []
+        for (let index = 0; index < docWords.length; index++) {
+          const word = docWords[index]
+          if (
+            word === '' ||
               word.length === 1 ||
               word.indexOf('http') === 0 ||
               stopwords.indexOf(word) >= 0
-            ) {
-              continue
-            }
-
-            if (!freq[word]) {
-              freq[word] = 0
-              words.push(word)
-            }
-            freq[word] = freq[word] + 1
-            const wordIndex = words.indexOf(word)
-            wordIndices.push(wordIndex)
-          }
-
-          if (!wordIndices.length) {
+          ) {
             continue
           }
 
-          documents[docCount++] = wordIndices
+          if (!freq[word]) {
+            freq[word] = 0
+            words.push(word)
+          }
+          freq[word] = freq[word] + 1
+          const wordIndex = words.indexOf(word)
+          wordIndices.push(wordIndex)
         }
 
-        const { theta, phi } = LDA(parseInt(self.topk), documents, words, {
-          seed: self.seed,
-          iterations: Number(self.iterations),
-          burnIn: Number(self.burnIn),
-          thinInterval: Number(self.thinInterval),
-          sampleLag: Number(self.sampleLag),
-          alpha: Number(self.alpha),
-          beta: Number(self.beta)
-        })
+        if (!wordIndices.length) {
+          continue
+        }
 
-        let topTerms = self.terms
-        const topics = []
-        for (let k = 0; k < phi.length; k++) {
-          const tuples = []
-          for (let w = 0; w < phi[k].length; w++) {
-            tuples.push({
-              word: words[w],
-              prob: phi[k][w]
-            })
-          }
-          tuples.sort(function (a, b) {
-            return b.prob - a.prob
+        documents[docCount++] = wordIndices
+      }
+
+      const { theta, phi } = await LDA(parseInt(self.topk), documents, words, {
+        seed: self.seed,
+        iterations: Number(self.iterations),
+        burnIn: Number(self.burnIn),
+        thinInterval: Number(self.thinInterval),
+        sampleLag: Number(self.sampleLag),
+        alpha: Number(self.alpha),
+        beta: Number(self.beta),
+        progress: (i) => {
+          self.currentIteration = i
+          return new Promise((resolve) => {
+            setTimeout(resolve, 0)
           })
-          if (topTerms > words.length) {
-            topTerms = words.length
-          }
-          topics[k] = []
-          for (let t = 0; t < topTerms; t++) {
-            const topicTerm = tuples[t].word
-            const prob = tuples[t].prob * 100
-            if (prob < self.topicThreshold) {
-              continue
-            }
-            self.log('topic ' + k + ': ' + topicTerm + ' = ' + prob + '%')
-            topics[k].push(tuples[t])
-          }
         }
+      })
 
-        self.$set(self, 'sentences', sentences)
-        self.$set(self, 'theta', theta)
-        self.$set(self, 'topics', topics)
-        self.$set(self, 'tabIndex', 'result')
-        window.localStorage.setItem('history', JSON.stringify(
-          pick(self.$data, [
-            'seed',
-            'topk',
-            'terms',
-            'iterations',
-            'burnIn',
-            'thinInterval',
-            'sampleLag',
-            'beta',
-            'stopwords',
-            'topicThreshold',
-            'text'
-          ])
-        ))
-      }, 0)
+      let topTerms = self.terms
+      const topics = []
+      for (let k = 0; k < phi.length; k++) {
+        const tuples = []
+        for (let w = 0; w < phi[k].length; w++) {
+          tuples.push({
+            word: words[w],
+            prob: phi[k][w]
+          })
+        }
+        tuples.sort(function (a, b) {
+          return b.prob - a.prob
+        })
+        if (topTerms > words.length) {
+          topTerms = words.length
+        }
+        topics[k] = []
+        for (let t = 0; t < topTerms; t++) {
+          const topicTerm = tuples[t].word
+          const prob = tuples[t].prob * 100
+          if (prob < self.topicThreshold) {
+            continue
+          }
+          self.log('topic ' + k + ': ' + topicTerm + ' = ' + prob + '%')
+          topics[k].push(tuples[t])
+        }
+      }
+
+      self.$set(self, 'sentences', sentences)
+      self.$set(self, 'theta', theta)
+      self.$set(self, 'topics', topics)
+      window.localStorage.setItem('history', JSON.stringify(
+        pick(self.$data, [
+          'seed',
+          'topk',
+          'terms',
+          'iterations',
+          'burnIn',
+          'thinInterval',
+          'sampleLag',
+          'beta',
+          'stopwords',
+          'topicThreshold',
+          'text'
+        ])
+      ))
+      self.currentIteration = 0
     }
   }
 }

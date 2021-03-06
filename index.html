@@ -13,7 +13,7 @@
     </b-navbar>
     <div class="container-fluid">
       <div class="d-flex flex-wrap mt-2">
-        <b-btn variant="primary" @click="calc">計算</b-btn>
+        <b-btn variant="primary" @click="calc" :disabled="!!currentIteration">計算</b-btn>
         <b-input-group style="width:150px;" prepend="topK">
           <b-form-input type="number" v-model="topk" :min="1" :max="256"></b-form-input>
         </b-input-group>
@@ -25,10 +25,14 @@
       <b-card no-body>
         <b-card-header header-tag="nav">
           <b-nav card-header tabs class="mb-1">
-            <b-nav-item :active="tabIndex==='input'" @click="tabIndex='input'">文章輸入</b-nav-item>
-            <b-nav-item :active="tabIndex==='stop'" @click="tabIndex='stop'">停用詞</b-nav-item>
-            <b-nav-item :active="tabIndex==='config'" @click="tabIndex='config'">進階設定</b-nav-item>
-            <b-nav-item v-if="logText" :active="tabIndex==='result'" @click="tabIndex='result'">結果</b-nav-item>
+            <b-nav-item :active="tabIndex==='input'" @click="tabIndex='input'" :disabled="!!currentIteration">文章輸入
+            </b-nav-item>
+            <b-nav-item :active="tabIndex==='stop'" @click="tabIndex='stop'" :disabled="!!currentIteration">停用詞
+            </b-nav-item>
+            <b-nav-item :active="tabIndex==='config'" @click="tabIndex='config'" :disabled="!!currentIteration">進階設定
+            </b-nav-item>
+            <b-nav-item v-if="logText||currentIteration" :active="tabIndex==='result'" @click="tabIndex='result'">結果
+            </b-nav-item>
           </b-nav>
         </b-card-header>
 
@@ -77,51 +81,57 @@
             </div>
           </template>
 
-          <div v-if="tabIndex==='result'&&logText">
-            <div class="row">
-              <b-card v-if="topics.length" class="col-8" style="
+          <div v-if="tabIndex==='result'">
+            <b-progress v-if="currentIteration" show-value animated>
+              <b-progress-bar :max="iterations" :value="currentIteration"></b-progress-bar>
+            </b-progress>
+            <template v-if="logText">
+              <div class="row">
+                <b-card v-if="topics.length" class="col-8" style="
                 height: 100%;
                 max-height: 300px;
                 overflow-y: scroll;">
-                <div class="d-flex flex-wrap justify-content-around">
-                  <div v-for="topic,index in topics" class="border border-1 rounded m-1" style="
+                  <div class="d-flex flex-wrap justify-content-around">
+                    <div v-for="topic,index in topics" class="border border-1 rounded m-1" style="
                     min-height: 100px;
                     min-width: 280px;
                     ">
-                    <vue-word-cloud class="m-3" style="
+                      <vue-word-cloud class="m-3" style="
                     height: 100px;
                     width: 280px;
                     " :words="topic.map((t)=>{return [t.word,t.prob]})" :color="color256[index].hexString"
-                      font-family="Roboto" />
+                        font-family="Roboto" />
+                    </div>
                   </div>
-                </div>
-              </b-card>
-              <b-form-textarea v-model="logText" :rows="6" class="col-4"></b-form-textarea>
-            </div>
+                </b-card>
+                <b-form-textarea v-model="logText" :rows="6" class="col-4"></b-form-textarea>
+              </div>
 
-            <div style="
+              <div style="
               height: 100%;
               max-height: 400px;
               overflow-y: scroll;">
-              <b-card v-for="sentence,index in sentences" :key="'sentence.'+index">
-                <b-card-header>
-                  #{{index+1}}
-                  <div>
-                    <b-progress>
-                      <b-progress-bar v-for="p,topicIndex in theta[index]"
-                        :max="theta[index].reduce((a,b)=>{return a+parseInt(b*100)},0)"
-                        :key="'bar.'+index+'.'+topicIndex" :style="{
+                <b-card v-for="sentence,index in sentences" :key="'sentence.'+index">
+                  <b-card-header>
+                    #{{index+1}}
+                    <div>
+                      <b-progress>
+                        <b-progress-bar v-for="p,topicIndex in theta[index]"
+                          :max="theta[index].reduce((a,b)=>{return a+parseInt(b*100)},0)"
+                          :key="'bar.'+index+'.'+topicIndex" :style="{
                       backgroundColor: color256[topicIndex].hexString
                       }" :value="parseInt(p*100)" v-b-tooltip.hover
-                        :title="parseInt(p*10000)/100+'% '+topics[topicIndex].map((topic)=>topic.word).join(' ')">
-                      </b-progress-bar>
-                    </b-progress>
-                  </div>
-                </b-card-header>
-                <p class="card-text">{{sentence}}</p>
-                <!-- <b-form-textarea v-model="logText /> -->
-              </b-card>
-            </div>
+                          :title="parseInt(p*10000)/100+'% '+topics[topicIndex].map((topic)=>topic.word).join(' ')">
+                        </b-progress-bar>
+                      </b-progress>
+                    </div>
+                  </b-card-header>
+                  <p class="card-text">{{sentence}}</p>
+                  <!-- <b-form-textarea v-model="logText /> -->
+                </b-card>
+              </div>
+
+            </template>
           </div>
         </b-card-body>
       </b-card>
